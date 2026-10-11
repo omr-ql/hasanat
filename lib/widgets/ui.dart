@@ -63,13 +63,11 @@ class DeltaChip extends StatelessWidget {
     required this.label,
     this.positive = true,
     this.neutral = false,
-    this.showArrow = true,
   });
 
   final String label;
   final bool positive;
   final bool neutral;
-  final bool showArrow;
 
   @override
   Widget build(BuildContext context) {
@@ -92,11 +90,7 @@ class DeltaChip extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Text(
-          neutral || !showArrow
-              ? label
-              : positive
-              ? '▲ $label'
-              : '▼ $label',
+          label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: arabicStyle(
@@ -137,34 +131,37 @@ class CircleIconButton extends StatelessWidget {
     final palette = AppPalette.of(context);
     return Tooltip(
       message: tooltip,
-      child: Material(
-        color: filled ? palette.blue : palette.card,
-        elevation: 0,
-        shadowColor: Colors.transparent,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onPressed,
-          child: Ink(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: filled ? palette.blue : palette.card,
-              boxShadow: filled ? const [] : cardShadow(context),
-            ),
-            child: Transform.flip(
-              flipX:
-                  matchTextDirection &&
-                  Directionality.of(context) == TextDirection.rtl,
-              child: Icon(
-                icon,
-                size: 22,
-                color: onPressed == null && mutedWhenDisabled
-                    ? palette.muted
-                    : filled
-                    ? Colors.white
-                    : palette.ink,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: filled ? const [] : cardShadow(context),
+        ),
+        child: Material(
+          color: filled ? palette.blue : palette.card,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onPressed,
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Transform.flip(
+                flipX:
+                    matchTextDirection &&
+                    Directionality.of(context) == TextDirection.rtl,
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: onPressed == null && mutedWhenDisabled
+                      ? palette.muted
+                      : filled
+                      ? Colors.white
+                      : palette.ink,
+                ),
               ),
             ),
           ),

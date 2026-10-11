@@ -68,18 +68,18 @@ const List<String> kWeekdayShort = ['ن', 'ث', 'ر', 'خ', 'ج', 'س', 'ح'];
 
 const List<String> kMonthShort = [
   '',
-  'ينا',
-  'فبر',
-  'مار',
-  'أبر',
-  'ماي',
-  'يون',
-  'يول',
-  'أغس',
-  'سبت',
-  'أكت',
-  'نوف',
-  'ديس',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 int dateKey(DateTime date) => date.year * 10000 + date.month * 100 + date.day;

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:hasanat/models/count_history.dart';
 import 'package:hasanat/models/dhikr.dart';
+import 'package:hasanat/models/salah_tasbih.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 
 class DhikrStore extends ChangeNotifier {
@@ -59,6 +60,13 @@ class DhikrStore extends ChangeNotifier {
 
   List<Dhikr> get custom {
     final items = _box.values.where((item) => !item.isPreset).toList();
+    items.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return items;
+  }
+
+  /// Every saved dhikr, including phrases that only appear after the prayer.
+  List<Dhikr> get recorded {
+    final items = _box.values.toList();
     items.sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return items;
   }
@@ -140,7 +148,12 @@ class DhikrStore extends ChangeNotifier {
   }
 
   Future<void> _ensurePresets() async {
-    for (final preset in kPresets) {
+    await _ensureList(kPresets);
+    await _ensureList(kSalahStored);
+  }
+
+  Future<void> _ensureList(List<PresetDhikr> presets) async {
+    for (final preset in presets) {
       final current = _box.get(preset.id);
       if (current == null) {
         await _box.put(
@@ -150,6 +163,7 @@ class DhikrStore extends ChangeNotifier {
             phrase: preset.phrase,
             isPreset: true,
             createdAt: preset.createdAt,
+            target: preset.target,
           ),
         );
       } else if (current.phrase != preset.phrase) {

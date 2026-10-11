@@ -143,12 +143,13 @@ class _CounterScreenState extends State<CounterScreen>
                     CircleIconButton(
                       icon: Icons.arrow_back,
                       tooltip: 'رجوع',
-                      matchTextDirection: true,
                       onPressed: () => Navigator.pop(context),
                     ),
                     const Spacer(),
                     PopupMenuButton<_CounterAction>(
                       tooltip: 'المزيد',
+                      padding: EdgeInsets.zero,
+                      borderRadius: BorderRadius.circular(24),
                       onSelected: (action) {
                         switch (action) {
                           case _CounterAction.rename:

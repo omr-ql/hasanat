@@ -4,8 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:hasanat/data/app_settings.dart';
 import 'package:hasanat/data/dhikr_store.dart';
+import 'package:hasanat/data/prayer_times.dart';
+import 'package:hasanat/data/reminders.dart';
 import 'package:hasanat/models/count_history.dart';
 import 'package:hasanat/models/dhikr.dart';
+import 'package:hasanat/models/salah_tasbih.dart';
 import 'package:hive_ce/hive.dart';
 
 void main() {
@@ -159,6 +162,9 @@ void main() {
         'الصلاة على النبي',
       ]);
       expect(store.custom, isEmpty);
+      expect(store.find('salam')?.target, 1);
+      expect(store.find('tahlil'), isNotNull);
+      expect(store.presets, hasLength(5));
     });
 
     test('keeps a custom phrase and its count after a restart', () async {
@@ -275,10 +281,10 @@ void main() {
         phrases: const [PhraseRef(id: 'hamd', phrase: 'الحمد لله')],
       );
 
-      expect(chart.buckets.first.label, 'ينا');
+      expect(chart.buckets.first.label, 'Jan');
       expect(
         chart.buckets.map((bucket) => bucket.label),
-        contains('أكت'),
+        contains('Oct'),
       );
       expect(chart.total, 14);
       expect(chart.buckets.any((bucket) => bucket.current == 4), isTrue);
@@ -291,6 +297,107 @@ void main() {
       expect(history.undo('a'), dateKey(DateTime(2026, 10, 11)));
       expect(history.totalOn(dateKey(DateTime(2026, 10, 11))), 0);
       expect(history.totalOn(dateKey(DateTime(2026, 10, 10))), 2);
+    });
+  });
+
+  group('after the prayer', () {
+    test('three istighfar lead into the salam, then the tasbih', () {
+      var progress = const SalahProgress();
+      expect(progress.current.phrase, 'أستغفر الله');
+      for (var i = 0; i < 3; i++) {
+        progress = progress.tap();
+      }
+      expect(progress.current.id, 'salam');
+      expect(progress.count, 0);
+      progress = progress.tap();
+      expect(progress.current.id, 'subhan');
+      expect(progress.current.target, 33);
+    });
+
+    test('the last phrase finishes the hundred and undo steps back', () {
+      var progress = const SalahProgress();
+      while (!progress.finished) {
+        progress = progress.tap();
+      }
+      expect(progress.current.id, 'tahlil');
+      expect(progress.undoId, 'tahlil');
+      progress = progress.undo();
+      expect(progress.finished, isFalse);
+      expect(progress.current.id, 'tahlil');
+      expect(progress.count, 0);
+    });
+  });
+
+  group('reminders', () {
+    test('reads a hadith and a prayer, then moves on after ten minutes', () {
+      final hadiths = parseNawawiHadiths(
+        '{"hadiths":[{"hadithnumber":1,"text":" إنما الأعمال بالنيات "}]}',
+      );
+      final prayers = parsePrayers(
+        '{"data":{"duas":[{"arabic":" رب اغفر لي ","source":"مسلم"}]}}',
+      );
+      expect(hadiths.single.text, 'إنما الأعمال بالنيات');
+      expect(hadiths.single.source, 'الأربعون النووية · 1');
+      expect(prayers.single.text, 'رب اغفر لي');
+
+      final library = ReminderLibrary(
+        hadiths: [
+          const Quote(text: 'الأول', source: '١'),
+          const Quote(text: 'الثاني', source: '٢'),
+        ],
+        prayers: prayers,
+      );
+      final first = DateTime.fromMillisecondsSinceEpoch(0);
+      final next = first.add(kReminderSlot);
+      expect(library.hadithAt(first)!.text, 'الأول');
+      expect(library.hadithAt(first, shift: 1)!.text, 'الثاني');
+      expect(library.hadithAt(next)!.text, 'الثاني');
+      expect(library.prayerAt(first)!.source, 'مسلم');
+      expect(ReminderLibrary.decode(library.encode())!.hadiths, hasLength(2));
+    });
+  });
+
+  group('prayer times', () {
+    test('keeps the five prayers in order and formats the clock', () {
+      final noon = DateTime(2026, 10, 11, 12);
+      final day = prayersFor(latitude: 21.4225, longitude: 39.8262, now: noon);
+      expect(
+        day.slots.map((slot) => slot.name).toList(),
+        ['الفجر', 'الظهر', 'العصر', 'المغرب', 'العشاء'],
+      );
+      for (var i = 0; i < day.slots.length - 1; i++) {
+        expect(day.slots[i].time.isBefore(day.slots[i + 1].time), isTrue);
+      }
+      expect(day.slots.where((slot) => slot.next), hasLength(1));
+      expect(formatPrayerClock(DateTime(2026, 10, 11, 5, 7)), '5:07 ص');
+      expect(formatPrayerClock(DateTime(2026, 10, 11, 18, 3)), '6:03 م');
+
+      final afterIsha = day.slots.last.time.add(const Duration(minutes: 1));
+      final later = prayersFor(
+        latitude: 21.4225,
+        longitude: 39.8262,
+        now: afterIsha,
+      );
+      expect(later.nextIsTomorrow, isTrue);
+      expect(later.nextName, 'الفجر');
+
+      final upcoming = upcomingPrayers(
+        latitude: 21.4225,
+        longitude: 39.8262,
+        now: noon,
+      );
+      expect(upcoming, isNotEmpty);
+      expect(upcoming.first.time.isAfter(noon), isTrue);
+      expect(upcoming.length, lessThanOrEqualTo(10));
+
+      final rows = prayerWidgetRows(
+        latitude: 21.4225,
+        longitude: 39.8262,
+        now: noon,
+      );
+      expect(rows, hasLength(10));
+      expect(rows.first['name'], 'الفجر');
+      expect(rows[5]['name'], 'الفجر');
     });
   });
 }

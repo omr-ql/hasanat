@@ -102,19 +102,12 @@ class _DualLinePainter extends CustomPainter {
       final x = current[index].dx;
       if (x - lastLabel < 36) continue;
       lastLabel = x;
-      _paintLabel(
+      _paintAxisLabel(
         canvas,
         label,
-        Offset(x - 22, plot.bottom + 6),
-        44,
+        x,
+        plot,
         muted,
-        const TextStyle(
-          fontFamily: 'Cairo',
-          fontFamilyFallback: ['Jakarta'],
-          fontSize: 11,
-          height: 1,
-        ),
-        TextAlign.center,
       );
     }
   }
@@ -173,6 +166,33 @@ class _DualLinePainter extends CustomPainter {
     final low = math.min(p1.dy, p2.dy);
     final high = math.max(p1.dy, p2.dy);
     return Offset(x, y.clamp(low, high));
+  }
+
+  void _paintAxisLabel(
+    Canvas canvas,
+    String text,
+    double x,
+    Rect plot,
+    Color color,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontFamily: 'Cairo',
+          fontFamilyFallback: const ['Jakarta'],
+          fontSize: 11,
+          height: 1,
+          color: color,
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+    var dx = x - painter.width / 2;
+    if (dx < plot.left) dx = plot.left;
+    if (dx + painter.width > plot.right) dx = plot.right - painter.width;
+    painter.paint(canvas, Offset(dx, plot.bottom + 6));
   }
 
   void _paintLabel(

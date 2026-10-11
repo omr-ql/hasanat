@@ -119,6 +119,10 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
 
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('dhikr-akbar')),
+      200,
+    );
     await tester.tap(find.byKey(const Key('dhikr-akbar')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
@@ -236,5 +240,36 @@ void main() {
       Brightness.light,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('after-prayer tasbih counts three istighfar then moves on', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(HasanatApp(store: store));
+    await tester.tap(find.byKey(const Key('salah-tasbih')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      tester.widget<Text>(find.byKey(const Key('salah-phrase'))).data,
+      'أستغفر الله',
+    );
+
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byKey(const Key('salah-ring')));
+      await tester.pump();
+    }
+
+    expect(
+      tester.widget<Text>(find.byKey(const Key('salah-phrase'))).data,
+      'اللهم أنت السلام ومنك السلام، تباركت يا ذا الجلال والإكرام',
+    );
+    expect(store.find('istighfar')!.total, 3);
+    expect(tester.takeException(), isNull);
+    await tester.pump(const Duration(milliseconds: 300));
   });
 }

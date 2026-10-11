@@ -3,11 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hasanat/data/app_settings.dart';
 import 'package:hasanat/dhikr_scope.dart';
-import 'package:hasanat/dhikr_style.dart';
 import 'package:hasanat/models/dhikr.dart';
+import 'package:hasanat/models/salah_tasbih.dart';
 import 'package:hasanat/screens/counter_screen.dart';
+import 'package:hasanat/screens/salah_tasbih_screen.dart';
 import 'package:hasanat/theme/app_theme.dart';
 import 'package:hasanat/widgets/editor_sheets.dart';
+import 'package:hasanat/widgets/prayer_times_card.dart';
+import 'package:hasanat/widgets/reminder_card.dart';
 import 'package:hasanat/widgets/ui.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -27,7 +30,7 @@ class HomeScreen extends StatelessWidget {
     final palette = AppPalette.of(context);
     final presets = store.presets;
     final custom = store.custom;
-    final everyone = [...presets, ...custom];
+    final everyone = store.recorded;
     final total = everyone.fold<int>(0, (sum, item) => sum + item.total);
     final rounds = everyone.fold<int>(0, (sum, item) => sum + item.rounds);
 
@@ -58,6 +61,18 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
+                sliver: SliverToBoxAdapter(child: PrayerTimesCard()),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                sliver: const SliverToBoxAdapter(child: _SalahCard()),
+              ),
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(20, 12, 20, 0),
+                sliver: SliverToBoxAdapter(child: ReminderCard()),
+              ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
                 sliver: SliverToBoxAdapter(
@@ -80,8 +95,6 @@ class HomeScreen extends StatelessWidget {
                     final dhikr = presets[index];
                     return _DhikrCard(
                       dhikr: dhikr,
-                      accent: accentFor(dhikr.id),
-                      icon: iconFor(dhikr.id),
                       onTap: () => _open(context, dhikr.id),
                     );
                   }, childCount: presets.length),
@@ -185,7 +198,67 @@ class HomeScreen extends StatelessWidget {
       destructive: true,
     );
     if (!approved || !context.mounted) return;
-    await DhikrScope.of(context).delete(dhikr.id);
+    await DhikrScope.of(context).delete(dhikr.id    );
+  }
+}
+
+class _SalahCard extends StatelessWidget {
+  const _SalahCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = AppPalette.of(context);
+    final salah = SettingsScope.of(context).salah;
+    final waiting = !salah.started;
+    final label = salah.finished
+        ? 'تمت'
+        : waiting
+        ? 'بعد السلام'
+        : '${salah.step + 1} من ${kSalahTasbih.length}';
+    return SoftCard(
+      tapKey: const Key('salah-tasbih'),
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const SalahTasbihScreen()),
+        );
+      },
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'تسبيح بعد الصلاة',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: arabicStyle(palette, size: 16),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  waiting
+                      ? 'أستغفر الله ثلاثًا، ثم التسبيح، وتمام المائة'
+                      : salah.finished
+                      ? 'تقبّل الله. ابدأها بعد الصلاة التالية.'
+                      : salah.current.phrase,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: arabicStyle(
+                    palette,
+                    size: 13,
+                    weight: FontWeight.w600,
+                    height: 1.35,
+                    color: palette.muted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          DeltaChip(label: label, neutral: waiting),
+        ],
+      ),
+    );
   }
 }
 
@@ -253,7 +326,7 @@ class _HomeHeader extends StatelessWidget {
         ] else if (total == 0)
           const Padding(
             padding: EdgeInsets.only(top: 8),
-            child: DeltaChip(label: 'ابدأ', neutral: true, showArrow: false),
+            child: DeltaChip(label: 'ابدأ', neutral: true),
           ),
         const SizedBox(width: 8),
         Padding(
@@ -333,16 +406,9 @@ class _TotalCard extends StatelessWidget {
 }
 
 class _DhikrCard extends StatelessWidget {
-  const _DhikrCard({
-    required this.dhikr,
-    required this.accent,
-    required this.icon,
-    required this.onTap,
-  });
+  const _DhikrCard({required this.dhikr, required this.onTap});
 
   final Dhikr dhikr;
-  final Color accent;
-  final IconData icon;
   final VoidCallback onTap;
 
   @override
@@ -357,29 +423,11 @@ class _DhikrCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  shape: BoxShape.circle,
-                ),
-                child: SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: Icon(icon, size: 16, color: accent),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  dhikr.phrase,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: arabicStyle(palette, size: 15),
-                ),
-              ),
-            ],
+          Text(
+            dhikr.phrase,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: arabicStyle(palette, size: 15),
           ),
           const Spacer(),
           Text(
@@ -405,13 +453,7 @@ class _DhikrCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              Flexible(
-                child: DeltaChip(
-                  label: paceLabel(dhikr),
-                  neutral: idle,
-                  showArrow: !dhikr.roundComplete && !idle,
-                ),
-              ),
+              DeltaChip(label: paceLabel(dhikr), neutral: idle),
             ],
           ),
         ],
@@ -491,14 +533,8 @@ class _CustomTile extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 6),
-          Flexible(
-            child: DeltaChip(
-              label: paceLabel(dhikr),
-              neutral: idle,
-              showArrow: !dhikr.roundComplete && !idle,
-            ),
-          ),
+          const SizedBox(width: 8),
+          DeltaChip(label: paceLabel(dhikr), neutral: idle),
           PopupMenuButton<_TileAction>(
             tooltip: 'المزيد',
             padding: EdgeInsets.zero,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:hasanat/dhikr_scope.dart';
-import 'package:hasanat/dhikr_style.dart';
 import 'package:hasanat/models/count_history.dart';
 import 'package:hasanat/theme/app_theme.dart';
 import 'package:hasanat/widgets/dual_line_chart.dart';
@@ -21,7 +20,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final store = DhikrScope.of(context);
     final palette = AppPalette.of(context);
     final phrases = [
-      for (final dhikr in [...store.presets, ...store.custom])
+      for (final dhikr in store.recorded)
         PhraseRef(id: dhikr.id, phrase: dhikr.phrase),
     ];
     final chart = buildChart(
@@ -245,25 +244,12 @@ class _ShareRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
-    final accent = accentFor(share.id);
     final high = share.fraction >= 0.5;
     final percent = '${(share.fraction * 100).round()}%';
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.16),
-              shape: BoxShape.circle,
-            ),
-            child: SizedBox(
-              width: 40,
-              height: 40,
-              child: Icon(iconFor(share.id), size: 20, color: accent),
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

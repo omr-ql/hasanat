@@ -9,11 +9,13 @@ class PresetDhikr {
     required this.id,
     required this.phrase,
     required this.createdAt,
+    this.target = kDefaultTarget,
   });
 
   final String id;
   final String phrase;
   final int createdAt;
+  final int target;
 }
 
 const List<PresetDhikr> kPresets = [
