@@ -50,19 +50,19 @@ class AppPalette extends ThemeExtension<AppPalette> {
   );
 
   static const dark = AppPalette(
-    ink: Color(0xFFF4F6FA),
-    muted: Color(0xFFA3A8B3),
-    blue: Color(0xFF3D92FF),
-    line: Color(0xFF2C3340),
-    track: Color(0xFF2A3140),
-    card: Color(0xFF1C212B),
+    ink: Color(0xFFFFFFFF),
+    muted: Color(0xFFB5B5B5),
+    blue: Color(0xFF4C9DFF),
+    line: Color(0xFF2A2A2A),
+    track: Color(0xFF1A1A1A),
+    card: Color(0xFF141414),
     danger: Color(0xFFFF6B6B),
-    canvas: Color(0xFF10141C),
-    wash: Color(0xFF10141C),
+    canvas: Color(0xFF000000),
+    wash: Color(0xFF000000),
     good: Color(0xFF3DDC8A),
-    goodSoft: Color(0xFF143226),
-    dangerSoft: Color(0xFF3A1C1C),
-    blueSoft: Color(0xFF162033),
+    goodSoft: Color(0xFF102418),
+    dangerSoft: Color(0xFF2A1212),
+    blueSoft: Color(0xFF0E1A2B),
   );
 
   static AppPalette of(BuildContext context) {

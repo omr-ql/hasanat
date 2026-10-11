@@ -36,11 +36,13 @@ class SoftCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = AppPalette.of(context);
     final radius = BorderRadius.circular(this.radius);
+    final shadows = cardShadow(context);
     return DecoratedBox(
       decoration: BoxDecoration(
         color: palette.card,
         borderRadius: radius,
-        boxShadow: cardShadow(context),
+        border: shadows.isEmpty ? Border.all(color: palette.line) : null,
+        boxShadow: shadows,
       ),
       child: Material(
         color: Colors.transparent,
@@ -90,7 +92,11 @@ class DeltaChip extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Text(
-          showArrow && positive && !neutral ? '▲ $label' : label,
+          neutral || !showArrow
+              ? label
+              : positive
+              ? '▲ $label'
+              : '▼ $label',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: arabicStyle(

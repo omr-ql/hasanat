@@ -1,12 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hasanat/data/app_settings.dart';
 import 'package:hasanat/dhikr_scope.dart';
+import 'package:hasanat/dhikr_style.dart';
 import 'package:hasanat/models/dhikr.dart';
 import 'package:hasanat/screens/counter_screen.dart';
 import 'package:hasanat/theme/app_theme.dart';
 import 'package:hasanat/widgets/editor_sheets.dart';
-import 'package:hasanat/widgets/hasanat_page.dart';
 import 'package:hasanat/widgets/ui.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -30,8 +31,7 @@ class HomeScreen extends StatelessWidget {
     final total = everyone.fold<int>(0, (sum, item) => sum + item.total);
     final rounds = everyone.fold<int>(0, (sum, item) => sum + item.rounds);
 
-    return HasanatPage(
-      child: ScreenWash(
+    return ScreenWash(
         child: SafeArea(
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(
@@ -80,8 +80,8 @@ class HomeScreen extends StatelessWidget {
                     final dhikr = presets[index];
                     return _DhikrCard(
                       dhikr: dhikr,
-                      accent: _accentFor(dhikr.id),
-                      icon: _iconFor(dhikr.id),
+                      accent: accentFor(dhikr.id),
+                      icon: iconFor(dhikr.id),
                       onTap: () => _open(context, dhikr.id),
                     );
                   }, childCount: presets.length),
@@ -155,7 +155,6 @@ class HomeScreen extends StatelessWidget {
             ],
           ),
         ),
-      ),
     );
   }
 
@@ -190,28 +189,6 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-Color _accentFor(String id) {
-  return switch (id) {
-    'istighfar' => const Color(0xFF097AFF),
-    'hamd' => const Color(0xFF1F9D55),
-    'subhan' => const Color(0xFFF5A524),
-    'akbar' => const Color(0xFF7C5CFC),
-    'salawat' => const Color(0xFF0EA5A0),
-    _ => const Color(0xFF097AFF),
-  };
-}
-
-IconData _iconFor(String id) {
-  return switch (id) {
-    'istighfar' => Icons.favorite_rounded,
-    'hamd' => Icons.wb_sunny_rounded,
-    'subhan' => Icons.auto_awesome_rounded,
-    'akbar' => Icons.stars_rounded,
-    'salawat' => Icons.mosque_rounded,
-    _ => Icons.add_rounded,
-  };
-}
-
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader({
     required this.palette,
@@ -225,9 +202,21 @@ class _HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = SettingsScope.of(context);
+    final black = settings.black;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.asset(
+            'assets/app_logo.jpg',
+            width: 44,
+            height: 44,
+            fit: BoxFit.cover,
+          ),
+        ),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -266,6 +255,19 @@ class _HomeHeader extends StatelessWidget {
             padding: EdgeInsets.only(top: 8),
             child: DeltaChip(label: 'ابدأ', neutral: true, showArrow: false),
           ),
+        const SizedBox(width: 8),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: CircleIconButton(
+            key: const Key('toggle-theme'),
+            icon: black ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+            tooltip: black ? 'الوضع الفاتح' : 'الوضع الأسود',
+            size: 40,
+            onPressed: () {
+              settings.toggle();
+            },
+          ),
+        ),
       ],
     );
   }

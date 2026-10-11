@@ -35,13 +35,12 @@ class _CounterScreenState extends State<CounterScreen>
   }
 
   Future<void> _increment(Dhikr dhikr) async {
-    final completed = dhikr.increment();
     unawaited(
       _press.forward(from: 0).then((_) {
         if (mounted) _press.reverse();
       }),
     );
-    await DhikrScope.of(context).save(dhikr);
+    final completed = await DhikrScope.of(context).increment(dhikr);
     unawaited(
       completed
           ? HapticFeedback.mediumImpact()
@@ -50,8 +49,7 @@ class _CounterScreenState extends State<CounterScreen>
   }
 
   Future<void> _decrement(Dhikr dhikr) async {
-    if (!dhikr.decrement()) return;
-    await DhikrScope.of(context).save(dhikr);
+    if (!await DhikrScope.of(context).decrement(dhikr)) return;
     unawaited(HapticFeedback.selectionClick());
   }
 
@@ -101,8 +99,7 @@ class _CounterScreenState extends State<CounterScreen>
       destructive: true,
     );
     if (!approved || !mounted) return;
-    dhikr.resetAll();
-    await DhikrScope.of(context).save(dhikr);
+    await DhikrScope.of(context).resetAll(dhikr);
   }
 
   Future<void> _delete(Dhikr dhikr) async {

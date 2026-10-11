@@ -1,15 +1,17 @@
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
+import 'package:hasanat/models/count_history.dart';
 import 'package:hasanat/models/dhikr.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
 
 class DhikrStore extends ChangeNotifier {
-  DhikrStore._(this._box);
+  DhikrStore._(this._box, this._log, this.history);
 
   static const String boxName = 'dhikr';
+  static const String logName = 'count_log';
 
   final Box<Dhikr> _box;
+  final Box<String> _log;
+  final CountHistory history;
   int _sequence = 0;
 
   static Future<DhikrStore> open() async {
@@ -25,21 +27,27 @@ class DhikrStore extends ChangeNotifier {
 
   @visibleForTesting
   static Future<DhikrStore> openInMemory() async {
-    if (!Hive.isAdapterRegistered(DhikrAdapter.typeIdConst)) {
-      Hive.registerAdapter(const DhikrAdapter());
-    }
+    _registerAdapter();
     final box = await Hive.openBox<Dhikr>(boxName, bytes: Uint8List(0));
-    final store = DhikrStore._(box);
-    await store._ensurePresets();
-    return store;
+    final log = await Hive.openBox<String>(logName, bytes: Uint8List(0));
+    return _fromBoxes(box, log);
   }
 
   static Future<DhikrStore> _openBox() async {
+    _registerAdapter();
+    final box = await Hive.openBox<Dhikr>(boxName);
+    final log = await Hive.openBox<String>(logName);
+    return _fromBoxes(box, log);
+  }
+
+  static void _registerAdapter() {
     if (!Hive.isAdapterRegistered(DhikrAdapter.typeIdConst)) {
       Hive.registerAdapter(const DhikrAdapter());
     }
-    final box = await Hive.openBox<Dhikr>(boxName);
-    final store = DhikrStore._(box);
+  }
+
+  static Future<DhikrStore> _fromBoxes(Box<Dhikr> box, Box<String> log) async {
+    final store = DhikrStore._(box, log, CountHistory.fromRaw(log.toMap()));
     await store._ensurePresets();
     return store;
   }
@@ -60,6 +68,35 @@ class DhikrStore extends ChangeNotifier {
   Future<void> save(Dhikr dhikr) async {
     notifyListeners();
     await _box.put(dhikr.id, dhikr);
+  }
+
+  Future<bool> increment(Dhikr dhikr, {DateTime? at}) async {
+    final finished = dhikr.increment();
+    final day = dateKey(at ?? DateTime.now());
+    history.add(dhikr.id, day, 1);
+    notifyListeners();
+    await _box.put(dhikr.id, dhikr);
+    await _writeDay(day);
+    return finished;
+  }
+
+  Future<bool> decrement(Dhikr dhikr) async {
+    if (!dhikr.decrement()) return false;
+    final day = history.undo(dhikr.id);
+    notifyListeners();
+    await _box.put(dhikr.id, dhikr);
+    if (day != null) await _writeDay(day);
+    return true;
+  }
+
+  Future<void> resetAll(Dhikr dhikr) async {
+    dhikr.resetAll();
+    final days = history.clearId(dhikr.id);
+    notifyListeners();
+    await _box.put(dhikr.id, dhikr);
+    for (final day in days) {
+      await _writeDay(day);
+    }
   }
 
   Future<Dhikr> createCustom({
@@ -85,8 +122,21 @@ class DhikrStore extends ChangeNotifier {
   Future<void> delete(String id) async {
     final current = _box.get(id);
     if (current == null || current.isPreset) return;
-    await _box.delete(id);
+    final days = history.clearId(id);
     notifyListeners();
+    await _box.delete(id);
+    for (final day in days) {
+      await _writeDay(day);
+    }
+  }
+
+  Future<void> _writeDay(int day) async {
+    final counts = history.countsOn(day);
+    if (counts.isEmpty) {
+      await _log.delete('$day');
+    } else {
+      await _log.put('$day', encodeDay(counts));
+    }
   }
 
   Future<void> _ensurePresets() async {

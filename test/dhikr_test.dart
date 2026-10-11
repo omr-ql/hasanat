@@ -1,7 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/material.dart';
+import 'package:hasanat/data/app_settings.dart';
 import 'package:hasanat/data/dhikr_store.dart';
+import 'package:hasanat/models/count_history.dart';
 import 'package:hasanat/models/dhikr.dart';
 import 'package:hive_ce/hive.dart';
 
@@ -43,6 +46,43 @@ void main() {
       expect(dhikr.rounds, 2);
       expect(dhikr.count, 1);
       expect(dhikr.total, 2);
+    });
+
+    test('undo steps back into a finished round', () {
+      final dhikr = sample()..setTarget(3);
+      dhikr.increment();
+      dhikr.increment();
+      dhikr.increment();
+      dhikr.increment();
+      expect(dhikr.count, 1);
+      expect(dhikr.rounds, 1);
+      expect(dhikr.total, 4);
+
+      expect(dhikr.decrement(), isTrue);
+      expect(dhikr.count, 3);
+      expect(dhikr.rounds, 1);
+      expect(dhikr.total, 3);
+      expect(dhikr.roundComplete, isTrue);
+
+      expect(dhikr.decrement(), isTrue);
+      expect(dhikr.count, 2);
+      expect(dhikr.rounds, 0);
+      expect(dhikr.total, 2);
+    });
+
+    test('a target of 1 undoes one completed tap at a time', () {
+      final dhikr = sample()..setTarget(1);
+      dhikr.increment();
+      dhikr.increment();
+      expect(dhikr.decrement(), isTrue);
+      expect(dhikr.count, 1);
+      expect(dhikr.rounds, 1);
+      expect(dhikr.total, 1);
+      expect(dhikr.decrement(), isTrue);
+      expect(dhikr.count, 0);
+      expect(dhikr.rounds, 0);
+      expect(dhikr.total, 0);
+      expect(dhikr.decrement(), isFalse);
     });
 
     test('undo steps back from a completed target', () {
@@ -149,8 +189,108 @@ void main() {
       expect(store.find(created.id), isNull);
     });
 
+    test('remembers black mode', () async {
+      final settings = await AppSettings.open();
+      expect(settings.black, isFalse);
+      await settings.toggle();
+      expect(settings.black, isTrue);
+
+      await Hive.close();
+      Hive.init(directory.path);
+      final restored = await AppSettings.open();
+      expect(restored.mode, ThemeMode.dark);
+    });
+
     test('rejects an empty phrase', () async {
       await expectLater(store.createCustom(phrase: '   '), throwsArgumentError);
+    });
+
+    test('keeps daily taps for the chart and drops them on reset', () async {
+      final created = await store.createCustom(phrase: 'سبحان الله وبحمده');
+      await store.increment(created, at: DateTime(2026, 10, 4));
+      await store.increment(created, at: DateTime(2026, 10, 11));
+      await store.increment(created, at: DateTime(2026, 10, 11));
+
+      await Hive.close();
+      final reopened = await DhikrStore.openInDirectory(directory.path);
+      final restored = reopened.custom.single;
+      final chart = buildChart(
+        history: reopened.history,
+        range: ChartRange.week,
+        now: DateTime(2026, 10, 11),
+        phrases: [PhraseRef(id: restored.id, phrase: restored.phrase)],
+      );
+      expect(chart.total, 2);
+      expect(chart.previousTotal, 1);
+      expect(formatChange(chart.changeRatio!), '100%');
+
+      await reopened.resetAll(restored);
+      final cleared = buildChart(
+        history: reopened.history,
+        range: ChartRange.week,
+        now: DateTime(2026, 10, 11),
+        phrases: [PhraseRef(id: restored.id, phrase: restored.phrase)],
+      );
+      expect(cleared.total, 0);
+      expect(restored.total, 0);
+    });
+  });
+
+  group('chart', () {
+    test('draws this week against the week before', () {
+      final history = CountHistory();
+      history.add('istighfar', dateKey(DateTime(2026, 10, 11)), 43);
+      history.add('istighfar', dateKey(DateTime(2026, 10, 4)), 40);
+      final chart = buildChart(
+        history: history,
+        range: ChartRange.week,
+        now: DateTime(2026, 10, 11),
+        phrases: const [PhraseRef(id: 'istighfar', phrase: 'استغفر الله')],
+      );
+
+      expect(chart.buckets, hasLength(7));
+      expect(chart.total, 43);
+      expect(chart.previousTotal, 40);
+      expect(chart.changeRatio, closeTo(0.075, 0.0001));
+      expect(formatChange(chart.changeRatio!), '7.5%');
+      expect(chart.axisMax, 100);
+      expect(formatAxisTick(chart.axisMax), '100');
+      expect(formatAxisTick(100000), '100k');
+      expect(
+        chart.buckets.last.label,
+        weekdayLabel(DateTime(2026, 10, 11).weekday),
+      );
+      expect(chart.shares.single.count, 43);
+      expect(chart.shares.single.fraction, 1);
+    });
+
+    test('labels the year by month through today', () {
+      final history = CountHistory();
+      history.add('hamd', dateKey(DateTime(2026, 1, 3)), 10);
+      history.add('hamd', dateKey(DateTime(2026, 10, 2)), 4);
+      final chart = buildChart(
+        history: history,
+        range: ChartRange.year,
+        now: DateTime(2026, 10, 11),
+        phrases: const [PhraseRef(id: 'hamd', phrase: 'الحمد لله')],
+      );
+
+      expect(chart.buckets.first.label, 'ينا');
+      expect(
+        chart.buckets.map((bucket) => bucket.label),
+        contains('أكت'),
+      );
+      expect(chart.total, 14);
+      expect(chart.buckets.any((bucket) => bucket.current == 4), isTrue);
+    });
+
+    test('undo removes the latest day first', () {
+      final history = CountHistory();
+      history.add('a', dateKey(DateTime(2026, 10, 10)), 2);
+      history.add('a', dateKey(DateTime(2026, 10, 11)), 1);
+      expect(history.undo('a'), dateKey(DateTime(2026, 10, 11)));
+      expect(history.totalOn(dateKey(DateTime(2026, 10, 11))), 0);
+      expect(history.totalOn(dateKey(DateTime(2026, 10, 10))), 2);
     });
   });
 }

@@ -55,6 +55,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/app_logo.jpg
     - assets/fonts/Cairo-OFL.txt
     - assets/fonts/PlusJakartaSans-OFL.txt
 

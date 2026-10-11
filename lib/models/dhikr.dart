@@ -70,13 +70,31 @@ class Dhikr {
     return false;
   }
 
-  /// Undoes the latest tap in the current round. Returns false at zero.
+  /// Reverses the latest tap, including one that started a new round.
+  ///
+  /// At zero, after a round reset, there is nothing to undo.
   bool decrement() {
-    if (count <= 0 || total <= 0) return false;
-    final completed = count >= target;
-    count -= 1;
+    if (total <= 0 || count <= 0) return false;
     total -= 1;
-    if (completed && rounds > 0) rounds -= 1;
+
+    if (target <= 1) {
+      rounds = rounds > 0 ? rounds - 1 : 0;
+      count = rounds > 0 ? 1 : 0;
+      return true;
+    }
+
+    if (count == 1 && rounds > 0) {
+      count = target;
+      return true;
+    }
+
+    if (count >= target) {
+      count = target - 1;
+      if (rounds > 0) rounds -= 1;
+      return true;
+    }
+
+    count -= 1;
     return true;
   }
 
